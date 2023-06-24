@@ -1,7 +1,7 @@
 // DEPENDENCIES
 const bands = require('express').Router();
 const db = require('../models');
-const { Band } = db;
+const { Band, MeetGreet, Event, SetTime } = db;
 const { Op } = require('sequelize');
 
 // ENDPOINTS
@@ -20,9 +20,39 @@ bands.get('/', async (req, res) => {
   }
 });
 
-bands.get('/:id', async (req, res) => {
+bands.get('/:name', async (req, res) => {
   try {
-    const foundBand = await Band.findOne({ where: { band_id: req.params.id } });
+    const foundBand = await Band.findOne({
+      where: { name: req.params.name },
+      include: [
+        {
+          model: MeetGreet,
+          as: 'meet_greets',
+          include: {
+            model: Event,
+            as: 'event',
+            where: {
+              name: {
+                [Op.like]: `%${req.query.event ? req.query.event : ''}%`,
+              },
+            },
+          },
+        },
+        {
+          model: SetTime,
+          as: 'set_times',
+          include: {
+            model: Event,
+            as: 'event',
+            where: {
+              name: {
+                [Op.like]: `%${req.query.event ? req.query.event : ''}%`,
+              },
+            },
+          },
+        },
+      ],
+    });
     res.status(200).json(foundBand);
   } catch (err) {
     console.log(err);
@@ -48,16 +78,18 @@ bands.put('/:id', async (req, res) => {
     res.status(200).json({ message: `Updated ${updatedBands} bands!` });
   } catch (err) {
     console.log(err);
-    res.status(500).send('ERROR GETTING ONE BAND');
+    res.status(500).send('ERROR UPDATING BANDS');
   }
 });
 
 bands.delete('/:id', async (req, res) => {
   try {
-    const deleteBand = await Band.destroy({
+    const deletedBand = await Band.destroy({
       where: { band_id: req.params.id },
     });
-    res.status(200).json({ message: `Successfuly deleted band!` });
+    res
+      .status(200)
+      .json({ message: `Successfully deleted band id ${req.params.id}!` });
   } catch (err) {
     console.log(err);
     res.status(500).send('ERROR DELETING BAND');
